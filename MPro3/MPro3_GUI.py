@@ -1,12 +1,15 @@
 import threading
 import tkinter as tk
 from tkinter import messagebox
-from downloader import youtube_to_mp3  # Import du module séparé
+from downloader import youtube_to_mp3, youtube_to_mp4  # Import du module séparé
+import yt_dlp
+# bonne docu tkinter : https://python.doctor/page-tkinter-interface-graphique-python-tutoriel 
 
 # Fonction appelée par le bouton
 def start_download():
     url = entry_url.get().strip()
     custom_title = entry_title.get().strip()
+    format_selected = format_choice.get() # Récupérer le format choisi
 
     if not url:
         messagebox.showerror("Erreur", "Veuillez entrer une URL YouTube.")
@@ -16,20 +19,31 @@ def start_download():
 
     def run_download():
         try:
-            original_title,message = youtube_to_mp3(url, custom_title)
-            if original_title:
+            with yt_dlp.YoutubeDL({'quiet': True}) as ydl:
+                info_dict = ydl.extract_info(url, download=False) # Télécharge les informations de la vidéo sans la télécharger
+                original_title = info_dict.get('title', 'Titre inconnu')
                 original_title_label.config(text=f"Titre original : {original_title}", fg = "black")
-            status_label.config(text=message, fg="green")
+
+                # Exécuter la bonne fonction selon le format choisi
+
+                if format_selected == "mp3":
+                    message = youtube_to_mp3(url, custom_title)
+                else:
+                    message = youtube_to_mp4(url, custom_title)
+
+                status_label.config(text=message, fg="green")
         except Exception as e:
             status_label.config(text=f"Erreur : {e}", fg="red")
 
-    threading.Thread(target=run_download, daemon=True).start()
+    threading.Thread(target=run_download, daemon=True).start() # Créer un thread pour ne pas bloquer l'interface 
+
 
 
 
 # --------------- Interface Tkinter ---------------
 root = tk.Tk()
 root.title("YouTube to MP3 Downloader")
+root.geometry("400x200")
 
 label_url = tk.Label(root, text="Entrez l'URL de la vidéo YouTube :")
 label_url.pack()
@@ -41,6 +55,16 @@ label_title = tk.Label(root, text="Titre personnalisé (optionnel) :")
 label_title.pack()
 entry_title = tk.Entry(root, width=50)
 entry_title.pack()
+
+# ---- Choix du format de sortie 
+format_choice = tk.StringVar(value="mp3") # Valeur par défaut
+
+radio_mp3 = tk.Radiobutton(root, text="MP3", variable=format_choice, value="mp3")
+radio_mp4 = tk.Radiobutton(root, text="MP4", variable=format_choice, value="mp4")
+radio_mp3.pack()
+radio_mp4.pack()
+
+
 
 download_button = tk.Button(root, text="Télécharger", command=start_download)
 download_button.pack()
